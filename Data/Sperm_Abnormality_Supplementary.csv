@@ -1,4 +1,4 @@
-﻿ID,Species,Species_Sample_Size,Country,Lat,Long,Location_Sample_Size,Collection_Method,Housing_Conditons
+ID,Species,Species_Sample_Size,Country,Lat,Long,Location_Sample_Size,Collection_Method,Housing_Conditons
 1,,,,,,,,alone
 1,,,,,,,,pair
 1,,,,,,,,breeding group
@@ -58,12 +58,8 @@
 30,,,,,,,,bachelor group
 30,,,,,,,,family
 30,,,,,,,,alone
-33,Ceratotherium simum,10,,,,,,
-33,Rhinoceros unicornis,1,,,,,,
-33,Diceros bicornis,3,,,,,,
-34,Ceratotherium simum,1,,39.83102152,-81.730677,2,,pair
-34,Rhinoceros unicornis,4,,39.14283567,-84.50902198,2,,breeding group
-34,Diceros bicornis,2,,30.732196,-81.70055501,3,,
+34,,,,,,,,pair
+34,,,,,,,,breeding group
 35,,,AUS,-37.922517,144.6673411,1.5,,
 35,,,AUT,-35.79520833,150.1594966,1.5,,
 35,,,DEU,-35.08765223,139.1627037,1.5,,
