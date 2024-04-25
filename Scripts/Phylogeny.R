@@ -13,7 +13,7 @@ library(phytools)
 
 
 #Phylogenetic Data
-#Create list of all species
+#Create list of all species involved in study
 unique_species <- data %>%
   distinct(Binomial)
 write.csv(unique_species, file="./Data/Unique_Species_List.csv", row.names=FALSE)
@@ -44,7 +44,6 @@ unique_species <- rbind(unique_species, "Macaca ochreata")
 unique_species <- rbind(unique_species, "Parascaptor leucura")
 unique_species <- rbind(unique_species, "Callicebus regulus")
 unique_species <- rbind(unique_species, "Herpestes brachyurus")
-unique_species <- rbind(unique_species, "Balaenoptera edeni")
 unique_species <- rbind(unique_species, "Trachypithecus barbei")
 unique_species <- rbind(unique_species, "Tarsius dentatus")
 unique_species <- rbind(unique_species, "Ovis orientalis")
@@ -218,16 +217,6 @@ phylogeny <- bind.tip(phylogeny,
                       where = node,
                       edge.length = 1,
                       position = 1)
-
-# Add the Bryde's Whale with divergence time 6,300,000 years
-# https://doi.org/10.1016/j.ympev.2006.03.032
-node <- which(phylogeny$tip.label=="Balaenoptera_edeni")
-node <- getMRCA(phylogeny, tip = c("Balaenoptera_edeni", "Balaenoptera_physalus"))
-phylogeny <- bind.tip(phylogeny,
-                      tip.label="Balaenoptera_brydei",
-                      where = node,
-                      edge.length = 6.3,
-                      position = 6.3)
 
 # Add the Indochinese Gray Langur with divergence time 360,000 years
 # https://doi.org/10.1007/s10764-017-0008-4

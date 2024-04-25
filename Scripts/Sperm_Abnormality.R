@@ -6,47 +6,57 @@ set.seed(88210729)
 packages <- 
   list("ggplot2", "ggmcmc", "ggthemes", "ggridges", "tidyverse", "viridis",
        "sp", "sf", "rnaturalearth", "rnaturalearthdata", "patchwork", "brms", 
-       "gridExtra", "bayesplot", "phangorn", "litsearchr", "ggtree", "shinystan", 
+       "gridExtra", "grid", "bayesplot", "phangorn", "litsearchr", "ggtree", "shinystan", 
        "png", "ape", "phytools", "plotrix", "pals", "RColorBrewer")
 sapply(packages, library, character=TRUE)
 
 #Lit Review Randomized List of Species
-Mammalian_Species <- read.csv("Data/MDD/MDD_v1.11_6649species.csv", na.strings=c("","NA"))
+Mammalian_Species <- read.csv("Data/MDD/MDD_v1.11_6649species.csv", na.strings=c("", NA))
 #Remove bats and rodents
 table(Mammalian_Species$order)
 Mammalian_Species <- Mammalian_Species[!Mammalian_Species$order=="CHIROPTERA",]
 Mammalian_Species <- Mammalian_Species[!Mammalian_Species$order=="RODENTIA",]
+
 #Generate randomized list of species
 Ordered_Mammalian_Species <- Mammalian_Species[sample(1:nrow(Mammalian_Species)), ]
 Ordered_Mammalian_Species$scientific_name <- gsub("_", " ", Ordered_Mammalian_Species$sciName)
 Ordered_Mammalian_Species$order_id <- 1:nrow(Ordered_Mammalian_Species)
+
+#Remove infraorder cetacea (whales, dolphins)
+#If conducting fresh literature search, remove these before generating randomized list with the bats and rodents.
+#If adding on to pre-existing database, continue with initial randomized order, since the initial list used
+#for the study was generated with cetaceans included.
+Mammalian_Species <- subset(Mammalian_Species, !(infraorder=="CETACEA"&!is.na(infraorder)))
+Ordered_Mammalian_Species <- subset(Ordered_Mammalian_Species, !(infraorder=="CETACEA"&!is.na(infraorder)))
 List_Species <- Ordered_Mammalian_Species[c("order_id", "mainCommonName", "scientific_name", "otherCommonNames")]
 write.csv(List_Species, file="./Data/MDD/Randomized_Mammalian_Species.csv", row.names=FALSE)
 
-#sample papers from search results
-#create function
-sample.paper <- function(results){
-  #subtract 0.01 from min to ensure min is included in sample
-  search_year_min <- min(results$year)-0.01
-  #max is inclusive in function
-  search_year_max <- max(results$year)
-  year_bins <- seq(search_year_min, search_year_max, by = (search_year_max - search_year_min)/5)
-  results$year_group <- cut(results$year, breaks = year_bins, labels = FALSE)
-  articles <- results %>% group_by(year_group) %>% slice_sample(n=4)
-  while(nrow(articles)<10){
-    articles <- rbind(articles, results[!results$title %in% articles$title, ] %>% sample_n(1))
-  }
-  return(articles)
-}
-
-#import results
-search_results <- import_results(file="./Data/Litsearch/Domestic_Horse.bib"); search_results$year <- as.numeric(search_results$year)
-articles <- sample.paper(search_results)
+#Optional function to sample 4 papers from each of the 5 evenly divided time frames in search result
+#Useful when there are too many papers. Uncomment to use.
+# #sample papers from search results
+# #create function
+# sample.paper <- function(results){
+#   #subtract 0.01 from min to ensure min is included in sample
+#   search_year_min <- min(results$year)-0.01
+#   #max is inclusive in function
+#   search_year_max <- max(results$year)
+#   year_bins <- seq(search_year_min, search_year_max, by = (search_year_max - search_year_min)/5)
+#   results$year_group <- cut(results$year, breaks = year_bins, labels = FALSE)
+#   articles <- results %>% group_by(year_group) %>% slice_sample(n=4)
+#   while(nrow(articles)<20){
+#     articles <- rbind(articles, results[!results$title %in% articles$title, ] %>% sample_n(1))
+#   }
+#   return(articles)
+# }
+# 
+# #import results
+# search_results <- import_results(file="./Data/Litsearch/Domestic_Horse.bib"); search_results$year <- as.numeric(search_results$year)
+# articles <- sample.paper(search_results)
 
 
 # Load data
-data <- read.csv("Data/Sperm_Abnormality_Database.csv", na.strings=c("","NA"))
-supp_data <- read.csv("Data/Sperm_Abnormality_Supplementary.csv", na.strings=c("","NA"))
+data <- read.csv("Data/Sperm_Abnormality_Database.csv", na.strings=c("",NA))
+supp_data <- read.csv("Data/Sperm_Abnormality_Supplementary.csv", na.strings=c("",NA))
 
 
 #Modify and clean data
@@ -74,93 +84,12 @@ data$Publish_Date <- as.numeric(as.Date(data$Publish_Date))
 data$original_ID <- data$ID
 full_data <- data %>%
   left_join(supp_data, by = c("original_ID" = "ID"))
-# for (supp_variable in noquote(ls(full_data)[ls(full_data) %in% ls(supp_data)|ls(full_data) %in% paste(ls(supp_data), ".y", sep="")])){
-#   full_data %>%
-#     mutate(supp_variable=coalesce(supp_variable, B))
-# }
 
-#Delete any species that only appeared once
-# data <- data[(data$Species%in%((data%>%count(Species))[-which((data%>%count(Species))$n<=1),])$Species),]
 
 length(unique(full_data$Binomial))
 
 #Extract country data from rnaturalearth package
 world <- ne_countries(scale = "medium", returnclass = "sf")
-
-# #With multiple omitted
-# countries <- data %>% count(Country, name="country_freq")
-# countries <- countries[-which(countries$Country=="multiple"),]
-# countries <- countries[!is.na(countries$Country),]
-# world <- merge(world, countries, all = TRUE, by.x="iso_a3", by.y="Country")
-# 
-# #Plot country frequencies onto global map
-# ggplot() +
-#   geom_sf(data = world, aes(fill = country_freq), color = "black", size = 0.2) +
-#   scale_fill_gradient(low = alpha("blue",0.2), high = alpha("blue",0.9), na.value = "grey") +
-#   scale_alpha_continuous(range = c(0, 1), guide = "legend") +
-#   labs(title = "Frequency Distribution of Countries") +
-#   theme_minimal()
-# 
-# #Plot with variation of colors, original data
-# for (color in c("blue", "#9E2EAF", "#A50F15")) {
-#   maps_test <- list()
-#   for (a in list(c(0.1, 0.7), c(0.1, 0.9), c(0.3, 0.7), c(0.3,0.9))) {
-#     map_test <- ggplot() +
-#       geom_sf(data = world, aes(fill = country_freq), color = "black", size = 0.2) +
-#       scale_fill_gradient(low = alpha(color ,a[1]), high = alpha(color ,a[2]), na.value = "grey") +
-#       scale_alpha_continuous(range = c(0, 1), guide = "legend") +
-#       labs(title = paste("Frequency Distribution of Countries,", "low=", as.character(a[1]), "high=", as.character(a[2])), subtitle=paste0("(", length(unique(countries$Country)), " countries)")) +
-#       xlab("Longitude") + ylab("Latitude") +
-#       theme_minimal() +
-#       theme(
-#         legend.key.height = unit(0.3, "cm"),  # Adjust the height of legend keys
-#         legend.key.width = unit(0.3, "cm"),   # Adjust the width of legend keys
-#         plot.title = element_text(size = 10),  # Adjust title text size
-#         plot.subtitle = element_text(size = 5),
-#         axis.title=element_text(size=5),
-#         legend.text = element_text(size = 5),  # Adjust legend text size
-#         legend.title = element_text(size = 8)  # Adjust legend title size
-#       )
-#     maps_test[[length(maps_test) + 1]] <- map_test
-#   }
-#   wrap_plots(maps_test, ncol=1)
-#   ggsave(last_plot(),
-#          width = 10, height = 8,
-#          dpi = 1200,
-#          path="./Images",
-#          bg = "transparent",
-#          file=paste(color, ".png", sep=""))
-# }
-# 
-# maps_test <- list()
-# for (color in c("blue", "#9E2EAF", "#A50F15")) {
-#   map_test <- ggplot() +
-#     geom_sf(data = world, aes(fill = country_freq), color = "black", size = 0.2) +
-#     scale_fill_gradient(low = alpha(color ,a[1]), high = alpha(color ,a[2]), na.value = "grey") +
-#     scale_alpha_continuous(range = c(0, 1), guide = "legend") +
-#     labs(title = paste("Frequency Distribution of Countries,", "low=", as.character(a[1]), "high=", as.character(a[2])), subtitle=paste0("(", length(unique(countries$Country)), " countries)")) +
-#     xlab("Longitude") + ylab("Latitude") +
-#     theme_minimal() +
-#     theme(
-#       legend.key.height = unit(0.3, "cm"),  # Adjust the height of legend keys
-#       legend.key.width = unit(0.3, "cm"),   # Adjust the width of legend keys
-#       plot.title = element_text(size = 10),  # Adjust title text size
-#       plot.subtitle = element_text(size = 5),
-#       axis.title=element_text(size=5),
-#       legend.text = element_text(size = 5),
-#       
-#       legend.title = element_text(size = 8)
-#     )
-#     maps_test[[length(maps_test) + 1]] <- map_test
-#   }
-# wrap_plots(maps_test, ncol=3)
-# ggsave(last_plot(),
-#        width = 12, height = 8,
-#        dpi = 1200,
-#        path="./Images",
-#        bg = "transparent",
-#        file=paste("map_colors.png"))
-
 
 coords <- data[c("ID", "Lat", "Long", "original_ID")][!(is.na(data$Lat)|(is.na(data$Long))), ] %>%
   left_join(supp_data[c("ID", "Lat", "Long")][!(is.na(supp_data$Lat)|(is.na(supp_data$Long))), ], by = c("original_ID" = "ID"))
@@ -184,45 +113,81 @@ unique_coords$Lat <- as.numeric(unique_coords$Lat)
 unique_coords$Long <- as.numeric(unique_coords$Long)
 unique_coords$freq <- as.numeric(unique_coords$freq)
 
-ggplot() +
-  geom_sf(data = world, color = "black", size = 0.2, fill = "grey") +
-  geom_point(data = unique_coords, aes(x = Long, y = Lat, size = freq), color = "red") +
-  labs(title = "Frequency Distribution of Countries") +
-  xlab("Longitude") + ylab("Latitude") +
+map.plot <- ggplot() +
+  geom_sf(data = world, color = "#6f6f6f", size = 0.2, fill = "#d3d3d3") +
+  geom_point(data = unique_coords, aes(x = Long, y = Lat, size = freq), color = "#0651f0") +
+  # labs(title = "Frequency Distribution of Countries") +
+  # xlab("Longitude") + ylab("Latitude") +
   theme_minimal() +
   coord_sf(lims_method = "geometry_bbox") +
-  scale_size_continuous(name = "Frequency")
+  scale_size_continuous(name = "Frequency") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        # legend.position = "none",
+        panel.background = element_blank(),
+        plot.background = element_blank())
+
+map.plot
 ggsave(last_plot(),
        width = 12, height = 8,
-       dpi = 1200,
+       dpi = 600,
        path="./Images",
        bg = "transparent",
-       file=paste("map_circles_red.png"))
-
-
-maps_test <- list()
-for (color in c("blue", "#9E2EAF", "#A50F15")) {
-  map_test <- ggplot() +
-    geom_sf(data = world, color = "black", size = 0.2, fill = "grey") +
-    geom_point(data = unique_coords, aes(x = Long, y = Lat, size = freq), color = color) +
-    labs(title = "Frequency Distribution of Countries") +
-    theme_minimal() +
-    coord_sf(lims_method = "geometry_bbox")
-  maps_test[[length(maps_test) + 1]] <- map_test
-}
-wrap_plots(maps_test, ncol=3)
-ggsave(last_plot(),
-       width = 12, height = 8,
-       dpi = 1200,
-       path="./Images",
-       bg = "transparent",
-       file="map_circles.png")
-
-
+       file=paste("map_circles_blue.png"))
 
 #Visualizing Data
 ggplot(data,aes(x=Publish_Date.date,y=normal_sperm)) + 
   geom_point()
+
+#Create mosaic plot of collection method and housing conditions
+data.present <- subset(data, Presence_of_Data=="Yes")
+collection.prop <- data.frame(prop.table(table(data.present$Collection_Method, exclude=NULL)))
+colnames(collection.prop) <- c("Collection_Method", "Proportion")
+housing.prop <- data.frame(prop.table(table(data.present$Housing, exclude=NULL)))
+colnames(housing.prop) <- c("Housing_Condition", "Proportion")
+
+collection.prop$Collection_Method <- factor(collection.prop$Collection_Method,
+                                            levels = collection.prop$Collection_Method[order(-collection.prop$Proportion, decreasing = TRUE)])
+housing.prop$Housing_Condition <- factor(housing.prop$Housing_Condition,
+                                         levels = housing.prop$Housing_Condition[order(-housing.prop$Proportion, decreasing=TRUE)])
+
+collection_plot <- ggplot(collection.prop, aes(x = "", y = Proportion, fill = Collection_Method)) + 
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  scale_fill_brewer(palette="Set3", na.value="grey") +
+  xlab("Collection Method") +
+  theme(legend.title = element_blank(),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        axis.text.y = element_text(face = "bold")) 
+
+# Create stacked bar plot for Housing
+housing_plot <- ggplot(housing.prop, aes(x = "", y = Proportion, fill = Housing_Condition)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  scale_fill_brewer(palette="Set2", na.value="grey") +
+  xlab("Housing Condition") +
+  theme(axis.title.y = element_blank(),
+        legend.title = element_blank(),
+        axis.title.x = element_text(face = "bold"),
+        axis.text.y = element_text(face = "bold")) 
+
+combined_plot <- grid.arrange(arrangeGrob(map.plot,
+                                          arrangeGrob(collection_plot, housing_plot, ncol = 2), 
+                                          heights = c(2, 1)), nrow = 1)
+
+ggsave(combined_plot,
+       width = 12, height = 10,
+       dpi = 600,
+       path="./Images",
+       bg = "transparent",
+       file=paste("data_distribution.png"))
+
+
 
 #Incorporate phylogeny data
 source("./Scripts/Phylogeny.R")
@@ -272,7 +237,7 @@ slope_tree$tree <- paintBranches(slope_tree$tree, slopes.na, "NA")
 cols <- setNames(c("grey", slope_tree$cols), c("NA",names(slope_tree$cols)))
 
 
-species.info <- Mammalian_Species[Mammalian_Species$sciName %in% names(species_slopes),c("sciName", "order")]
+species.info <- Mammalian_Species[Mammalian_Species$sciName %in% names(species_slopes), c("sciName", "order", "iucnStatus")]
 
 species.info <- species.info %>%
   group_by(order) %>%
@@ -280,7 +245,6 @@ species.info <- species.info %>%
 species.info <- species.info[-which(species.info$order=="CARNIVORA"),]
 # Remove CARNIVORA as it spans throughout the tree which causes issues when adding lines in a fan plot.
 # They will be added in manually based on the tip later.
-
 species.info <- species.info %>%
   group_by(order) %>%
   mutate(common_ancestor = ifelse(num_in_order>1, findMRCA(phylo.ultra, sciName), which(phylo.ultra$tip.label==sciName)))
@@ -294,6 +258,8 @@ orders.text.size <- 0.3 + orders.info$num_in_order/50
 line.offset <- c(1.2, 1.2, 1.28, rep(1.2, 14))
 label.offset <- c(1.24, 1.24, 1.3, 1.24, 1.24, 1.24, 1.24, 1.28, 
                   1.24, 1.24, 1.28, rep(1.24, 6))
+pics <- c("Crocidura_russula","Equus_ferus","Felis_catus","Gorilla_gorilla","Homo_sapiens", 
+          "Loxodonta_africana", "Myrmecophaga_tridactyla", "Ovis_orientalis", "Panthera_leo", "Vulpes_lagopus")
 
 # Plot phylogeny with slopes
 png("./Images/slopes.png", pointsize=10, width=6000, height=8000, res=600)
@@ -303,46 +269,45 @@ orders.labels <- mapply(arc.cladelabels, text=orders.name, node=orders.node, col
                         ln.offset=line.offset, lab.offset=label.offset, MoreArgs=list(mark.node=FALSE, lwd=6), 
                         cex=orders.text.size)
 # Change radius and degrees depending on plot size and other factors
-draw.arc(radius=376.5, deg1=64.2, deg2=-3, lwd=6, col=orders.col[length(orders.info$order)-1])
+draw.arc(radius=376.5, deg1=66.5, deg2=-3, lwd=6, col=orders.col[length(orders.info$order)-1])
 arctext("CARNIVORA", radius=390,
-        middle=mean(c((64.2*pi/180), (-3*pi/180)), cex=2))
+        middle=mean(c((66.5*pi/180), (-3*pi/180)), cex=2))
 add.color.bar(600, slope_tree$cols, title="Estimated Annual Change in Normal Sperm Proportion \n", lims=lims,
               digits=3, subtitle="", x=-300, y=-475, prompt=FALSE, fsize=1.5, lwd=10)
 legend(x=-312, y=-475, legend="missing", pch=22,
        pt.bg="grey", bty="n", pt.cex=3, cex=1.5)
+
 dev.off()
 
+# IUCN and Slopes
+species.iucn <- Mammalian_Species[Mammalian_Species$sciName %in% names(slopes_available), c("sciName", "iucnStatus")]
+slopes.iucn <- data.frame(sciName=names(slopes_available), 
+                          slope=slopes_available)
+slopes.iucn <- merge(slopes.iucn, species.iucn, by.x = "sciName", by.y = "sciName")
+slopes.iucn$iucnStatus <- factor(slopes.iucn$iucnStatus, 
+                                    levels=c("DD", "LC", "NT", "VU", "EN", "CR", "EW", "EX", "NE"))
 
-# plot(obj$tree,cols,split.vertical=TRUE,outline=TRUE,lwd=6,
-#      ftype="i",fsize=0.7)
-# add.color.bar(40,obj$cols,title="trait",lims=range(x,na.rm=TRUE),
-#               digits=2,subtitle="",x=0,y=0.97*Ntip(mammal.tree),prompt=FALSE)
-# legend(x=-3,y=0.95*Ntip(mammal.tree),legend="missing",pch=22,
-#        pt.bg="white",bty="n",pt.cex=2)
+ggplot(slopes.iucn, aes(x=iucnStatus, y=slope, fill=iucnStatus)) + 
+  geom_boxplot() +
+  geom_jitter(height = 0, width = 0.2, na.rm = TRUE) +
+  theme(legend.position="none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_text(size = 15, face = "bold"),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        panel.background = element_blank(),
+        plot.background = element_blank()) +
+  scale_fill_brewer(palette="Set2") +
+  labs(x = "IUCN Status", y = "Annual Change in Normal Sperm Proportion")
 
-
-ggtree(phylogeny, branch.length = "none") + 
-  theme_tree2() +
-  geom_tiplab(size=2)
 
 ggsave(last_plot(),
-       width = 10, height = 12,
-       dpi = 1200,
+       width = 8, height = 8,
+       dpi = 600,
        path="./Images",
-       file="phylo.png")
-
-# norm_sperm_species_ce_95 <- conditional_effects(norm_sperm_species, effects = "Publish_Date:Binomial", prob=0.95)
-# plot(norm_sperm_species_ce_95, points=TRUE) [[1]] + 
-#   scale_x_continuous(labels = function(x) as.Date(x, origin = "1970-01-01")) + 
-#   labs(x = "Year", y = "Normal Sperm with 95% CI") +
-#   theme(legend.position="bottom", legend.key.size = unit(2, "mm")) +
-#   guides(fill=guide_legend(nrow=2, byrow=TRUE))
-# ggsave(last_plot(),
-#        width = 12, height = 8,
-#        dpi = 1200,
-#        path="./Images",
-#        bg = "transparent",
-#        file="Species_Effect_95_Legend.png")
+       file="IUCN_Slopes.png")
 
 #All Measures
 measures <- c("normal_sperm", "intact_acrosome", "head_abnormal", "midpiece_abnormal", "tail_abnormal", "motility")
@@ -378,11 +343,11 @@ if (length(measures)==length(labels)){
       labs(x = "Year", y = labels[i], tag = tags[i]) +
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
-            plot.tag = element_text(size = 12, family = "sans", face = "bold"),
-            axis.title.y = element_text(size = 25, family = "sans", face = "bold", vjust = 1.5),
-            axis.title.x = element_text(size = 25, family = "sans", face = "bold"),
-            axis.text.y = element_text(size = 10, family = "sans"),
-            axis.text.x = element_text(size = 10, family = "sans"), 
+            plot.tag = element_text(size = 18, face = "bold"),
+            axis.title.y = element_text(size = 25, face = "bold", vjust = 1.5),
+            axis.title.x = element_text(size = 18, face = "bold"),
+            axis.text.y = element_text(size = 10),
+            axis.text.x = element_text(size = 10), 
             panel.background = element_blank(),
             panel.border = element_rect(linewidth = 0.2, fill = NA),
             plot.background = element_blank(),
@@ -403,15 +368,17 @@ Traits.time <-
 
 ggsave(Traits.time,
        width = 15, height = 10,
-       dpi = 1200,
+       dpi = 600,
        path="./Images",
        file="Sperm_Traits.png")
 
-#Change font to ggplot recognized font
-plot(models[["normal_sperm"]], ask = FALSE)
-bayesplot_theme_set(theme_default() + theme(text=element_text(family="Arial")))
-pp_check(models[["normal_sperm"]], ndraws = 100)
 
-# launch_shinystan(models[["normal_sperm"]])
+plot(models[["normal_sperm"]])
+plot(models[["intact_acrosome"]])
+plot(models[["head_abnormal"]])
+plot(models[["midpiece_abnormal"]])
+plot(models[["tail_abnormal"]])
+plot(models[["motility"]])
+
 
 
