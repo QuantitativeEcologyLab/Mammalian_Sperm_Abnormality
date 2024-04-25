@@ -6,4 +6,4 @@ A repository for a B.Sc. Hons. Zoology research project by Nozomu Hirama on glob
 BIOL 440 Honours Thesis
 Supervising Professor: Dr. Michael J. Noonan
 Quantitative Ecology Lab
-University of British Columbia Okangan
+University of British Columbia Okanagan
