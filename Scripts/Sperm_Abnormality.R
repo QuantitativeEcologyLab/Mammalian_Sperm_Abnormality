@@ -1,13 +1,14 @@
 # Set the working directory
-setwd("/Users/nozo/Library/CloudStorage/OneDrive-UBC/Quantitative_Ecology_Lab/Nozomu_Hirama_Undergraduate_Honours/Mammalian_Sperm_Abnormality/")
 set.seed(88210729)
 
 # Load packages
 packages <- 
   list("ggplot2", "ggmcmc", "ggthemes", "ggridges", "tidyverse", "viridis",
        "sp", "sf", "rnaturalearth", "rnaturalearthdata", "patchwork", "brms", 
-       "gridExtra", "grid", "bayesplot", "phangorn", "litsearchr", "ggtree", "shinystan", 
-       "png", "ape", "phytools", "plotrix", "pals", "RColorBrewer")
+       "gridExtra", "grid", "bayesplot", "phangorn", "ggtree", "shinystan", 
+       "png", "ape", "phytools", "plotrix", "pals", "RColorBrewer", "rphylopic", "grid"
+       # , "litsearchr"
+       )
 sapply(packages, library, character=TRUE)
 
 #Lit Review Randomized List of Species
@@ -132,12 +133,12 @@ map.plot <- ggplot() +
         plot.background = element_blank())
 
 map.plot
-ggsave(last_plot(),
-       width = 12, height = 8,
-       dpi = 600,
-       path="./Images",
-       bg = "transparent",
-       file=paste("map_circles_blue.png"))
+# ggsave(last_plot(),
+#        width = 12, height = 8,
+#        dpi = 600,
+#        path="./Images",
+#        bg = "transparent",
+#        file=paste("map_circles_blue.png"))
 
 #Visualizing Data
 ggplot(data,aes(x=Publish_Date.date,y=normal_sperm)) + 
@@ -180,12 +181,12 @@ combined_plot <- grid.arrange(arrangeGrob(map.plot,
                                           arrangeGrob(collection_plot, housing_plot, ncol = 2), 
                                           heights = c(2, 1)), nrow = 1)
 
-ggsave(combined_plot,
-       width = 12, height = 10,
-       dpi = 600,
-       path="./Images",
-       bg = "transparent",
-       file=paste("data_distribution.png"))
+# ggsave(combined_plot,
+#        width = 12, height = 10,
+#        dpi = 600,
+#        path="./Images",
+#        bg = "transparent",
+#        file=paste("data_distribution.png"))
 
 
 
@@ -260,6 +261,9 @@ label.offset <- c(1.24, 1.24, 1.3, 1.24, 1.24, 1.24, 1.24, 1.28,
                   1.24, 1.24, 1.28, rep(1.24, 6))
 pics <- c("Crocidura_russula","Equus_ferus","Felis_catus","Gorilla_gorilla","Homo_sapiens", 
           "Loxodonta_africana", "Myrmecophaga_tridactyla", "Ovis_orientalis", "Panthera_leo", "Vulpes_lagopus")
+phylopics <- lapply(pics, function(name) {
+  readPNG(paste0("Data/Phylopic/", name, ".png"))
+})
 
 # Plot phylogeny with slopes
 png("./Images/slopes.png", pointsize=10, width=6000, height=8000, res=600)
@@ -272,11 +276,36 @@ orders.labels <- mapply(arc.cladelabels, text=orders.name, node=orders.node, col
 draw.arc(radius=376.5, deg1=66.5, deg2=-3, lwd=6, col=orders.col[length(orders.info$order)-1])
 arctext("CARNIVORA", radius=390,
         middle=mean(c((66.5*pi/180), (-3*pi/180)), cex=2))
-add.color.bar(600, slope_tree$cols, title="Estimated Annual Change in Normal Sperm Proportion \n", lims=lims,
+add.color.bar(600, slope_tree$cols, title="Trend in Normality of Sperm over Time \n", lims=lims,
               digits=3, subtitle="", x=-300, y=-475, prompt=FALSE, fsize=1.5, lwd=10)
 legend(x=-312, y=-475, legend="missing", pch=22,
        pt.bg="grey", bty="n", pt.cex=3, cex=1.5)
 
+dev.off()
+
+slopes.plot <- readPNG("./Images/slopes.png")
+phylopics.indices <- match(pics, unlist(slope_tree$tree["tip.label"]))
+phylopics.degree <- 2*pi/slope_tree$tree[["Nnode"]]*phylopics.indices
+phylopics.cos <- cos(phylopics.degree)
+phylopics.x <- (phylopics.cos+0.975)/2
+phylopics.sin <- sin(phylopics.degree)
+phylopics.y <- (phylopics.sin+0.975)/2
+
+# Adjust any phylopics that are overlapping.
+# Adding or subtracting half of the width (0.05) we set later in the plot should ensure they are separated.
+phylopics.x[c(4, 5)] <- phylopics.x[c(4, 5)]+c(0.025, -0.025)
+phylopics.y[c(4, 5)] <- phylopics.y[c(4, 5)]+c(-0.025, 0.025)
+
+png("./Images/slopes.full.png", pointsize=10, width=8000, height=8000, res=600)
+plot.new()
+grid.raster(slopes.plot, 0.5, 0.5, 0.75)
+add_phylopic_base(img = phylopics, x = phylopics.x, y=phylopics.y, height = 0.05)
+dev.off()
+
+png("./Images/slopes.full.lowres.png", pointsize=10, width=2500, height=2500, res=300)
+plot.new()
+grid.raster(slopes.plot, 0.5, 0.5, 0.7)
+add_phylopic_base(img = phylopics, x = phylopics.x, y=phylopics.y, height = 0.05)
 dev.off()
 
 # IUCN and Slopes
@@ -303,11 +332,11 @@ ggplot(slopes.iucn, aes(x=iucnStatus, y=slope, fill=iucnStatus)) +
   labs(x = "IUCN Status", y = "Annual Change in Normal Sperm Proportion")
 
 
-ggsave(last_plot(),
-       width = 8, height = 8,
-       dpi = 600,
-       path="./Images",
-       file="IUCN_Slopes.png")
+# ggsave(last_plot(),
+#        width = 8, height = 8,
+#        dpi = 600,
+#        path="./Images",
+#        file="IUCN_Slopes.png")
 
 #All Measures
 measures <- c("normal_sperm", "intact_acrosome", "head_abnormal", "midpiece_abnormal", "tail_abnormal", "motility")
@@ -351,7 +380,8 @@ if (length(measures)==length(labels)){
             panel.background = element_blank(),
             panel.border = element_rect(linewidth = 0.2, fill = NA),
             plot.background = element_blank(),
-            plot.margin = unit(c(0.2,0.4,0,0.2), "cm"))
+            plot.margin = unit(c(0.2,0.4,0,0.2), "cm"), 
+            scale_y_continuous(limits = c(0,1)))
   }
 } else {
   print("Measures count and Labels count do not match up")
@@ -365,12 +395,13 @@ Traits.time <-
               plots[["tail_abnormal"]], 
               plots[["motility"]], 
               ncol=3)
+plot(Traits.time)
 
-ggsave(Traits.time,
-       width = 15, height = 10,
-       dpi = 600,
-       path="./Images",
-       file="Sperm_Traits.png")
+# ggsave(Traits.time,
+#        width = 15, height = 10,
+#        dpi = 600,
+#        path="./Images",
+#        file="Sperm_Traits.png")
 
 
 plot(models[["normal_sperm"]])
