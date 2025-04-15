@@ -259,11 +259,27 @@ orders.text.size <- 0.3 + orders.info$num_in_order/50
 line.offset <- c(1.2, 1.2, 1.28, rep(1.2, 14))
 label.offset <- c(1.24, 1.24, 1.3, 1.24, 1.24, 1.24, 1.24, 1.28, 
                   1.24, 1.24, 1.28, rep(1.24, 6))
+
 pics <- c("Crocidura_russula","Equus_ferus","Felis_catus","Gorilla_gorilla","Homo_sapiens", 
           "Loxodonta_africana", "Myrmecophaga_tridactyla", "Ovis_orientalis", "Panthera_leo", "Vulpes_lagopus")
+
 phylopics <- lapply(pics, function(name) {
   readPNG(paste0("Data/Phylopic/", name, ".png"))
 })
+
+phylopics.dim.ratio <- lapply(phylopics, function(pic) {
+  dim(pic)[2]/dim(pic)[1]
+})
+unlist(phylopics.dim.ratio)
+
+# Calculate a height that would result in an image size/area that is close to a square 
+# of 0.05x0.05. This should ensure wider and taller images to still be visually the same 
+# size as other images while maintaining the original ratio of the image.
+# The "0.05" can be changed based on what size phylopics you want to plot. Here, a 
+# square image with height=0.05 in add_phylopic_base() gave a good size, so we base our 
+# comparisons on this height.
+phylopics.height <- sqrt((0.05*0.05)/unlist(phylopics.dim.ratio))
+phylopics.height
 
 # Plot phylogeny with slopes
 png("./Images/slopes.png", pointsize=10, width=6000, height=8000, res=600)
@@ -299,13 +315,14 @@ phylopics.y[c(4, 5)] <- phylopics.y[c(4, 5)]+c(-0.025, 0.025)
 png("./Images/slopes.full.png", pointsize=10, width=8000, height=8000, res=600)
 plot.new()
 grid.raster(slopes.plot, 0.5, 0.5, 0.75)
-add_phylopic_base(img = phylopics, x = phylopics.x, y=phylopics.y, height = 0.05)
+add_phylopic_base(img = phylopics, 
+                  x = phylopics.x, y=phylopics.y, 
+                  height = phylopics.height)
 dev.off()
 
-png("./Images/slopes.full.lowres.png", pointsize=10, width=2500, height=2500, res=300)
+png("./Images/slopes.full.lowres.png", pointsize=10, width=1200, height=1200, res=300)
 plot.new()
-grid.raster(slopes.plot, 0.5, 0.5, 0.7)
-add_phylopic_base(img = phylopics, x = phylopics.x, y=phylopics.y, height = 0.05)
+grid.raster(readPNG("./Images/slopes.full.png"), 0.5, 0.5)
 dev.off()
 
 # IUCN and Slopes
